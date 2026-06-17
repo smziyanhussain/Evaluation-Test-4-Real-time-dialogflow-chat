@@ -1,11 +1,11 @@
 """
 server.py
 ---------
-Python WebSocket server jo:
-  1. Chat UI (frontend) se connections accept karta hai
-  2. User ka message WebSocket se receive karta hai
-  3. Message Dialogflow ES ko bhejta hai (REST API)
-  4. Dialogflow ka reply wapas client ko WebSocket se bhejta hai
+Python WebSocket server :
+  1. Chat UI (frontend) 
+  2. User message received to WebSocket 
+  3. Message sent to Dialogflow ES  (REST API)
+  4. Dialogflow reply return to client 
 """
 
 import asyncio
@@ -25,33 +25,24 @@ PORT          = int(os.getenv("PORT", 3000))
 
 # Startup pe check karo ke PROJECT_ID hai ya nahi
 if not PROJECT_ID:
-    raise EnvironmentError("❌  DIALOGFLOW_PROJECT_ID missing hai .env mein!")
+    raise EnvironmentError("  DIALOGFLOW_PROJECT_ID missing hai .env mein!")
 
 
 # ── Dialogflow Function ──────────────────────────────────────────────────────
 def send_to_dialogflow(message: str, session_id: str) -> str:
-    """
-    User ka message Dialogflow ES ko bhejta hai aur reply return karta hai.
+   
 
-    Args:
-        message    : User ka text message
-        session_id : Har client ka unique session ID (context preserve karta hai)
-
-    Returns:
-        Dialogflow ka fulfillment text (bot ka reply)
-    """
-
-    # Dialogflow Sessions client banao
+    # Dialogflow Sessions 
     session_client = dialogflow.SessionsClient()
 
-    # Session path:  projects/<PROJECT_ID>/agent/sessions/<session_id>
+    # Session path:  projects->PROJECT_ID
     session_path = session_client.session_path(PROJECT_ID, session_id)
 
-    # Request object banao
+    # Request object 
     text_input    = dialogflow.TextInput(text=message, language_code=LANGUAGE_CODE)
     query_input   = dialogflow.QueryInput(text=text_input)
 
-    # Dialogflow ko request bhejo
+    # Dialogflow request
     response      = session_client.detect_intent(
         request={"session": session_path, "query_input": query_input}
     )
@@ -75,10 +66,10 @@ async def handle_client(websocket):
     print(f"\n[+] Client connect hua  (session: {session_id})")
 
     try:
-        # Client ke messages sunte raho (loop)
+        # Client messages 
         async for raw_message in websocket:
 
-            # ── JSON parse karo ──
+            # JSON 
             try:
                 data         = json.loads(raw_message)
                 user_message = data.get("message", "").strip()
@@ -87,16 +78,16 @@ async def handle_client(websocket):
                     raise ValueError("Message empty hai")
 
             except (json.JSONDecodeError, ValueError) as e:
-                print(f"⚠️  Parse error: {e}")
+                print(f"  Parse error: {e}")
                 await websocket.send(json.dumps({"error": "Invalid message format"}))
                 continue
 
             print(f"\n[→] User    : \"{user_message}\"")
 
-            # ── Dialogflow ko bhejo ──
+            # ──  Send t Dialogflow  ──
             try:
-                # Dialogflow blocking call hai, isliye thread mein chalao
-                # taake async loop block na ho
+                # Dialogflow blocking call 
+                
                 loop      = asyncio.get_event_loop()
                 bot_reply = await loop.run_in_executor(
                     None, send_to_dialogflow, user_message, session_id
@@ -104,11 +95,11 @@ async def handle_client(websocket):
 
                 print(f"[←] Bot     : \"{bot_reply}\"")
 
-                # ── Reply client ko bhejo ──
+                # ── Reply client ──
                 await websocket.send(json.dumps({"text": bot_reply}))
 
             except Exception as df_error:
-                print(f"❌  Dialogflow error: {df_error}")
+                print(f"  Dialogflow error: {df_error}")
                 await websocket.send(json.dumps({
                     "text": "Sorry, something went wrong."
                 }))
@@ -117,16 +108,16 @@ async def handle_client(websocket):
         print(f"[-] Client disconnect hua (session: {session_id})")
 
     except websockets.exceptions.ConnectionClosedError as e:
-        print(f"⚠️  Connection error (session: {session_id}): {e}")
+        print(f"  Connection error (session: {session_id}): {e}")
 
 
 # ── Server Start ─────────────────────────────────────────────────────────────
 async def main():
-    print(f"\n🚀  WebSocket server chal raha hai  ws://localhost:{PORT}")
-    print(f"📡  Dialogflow Project ID : {PROJECT_ID}")
-    print(f"🌐  Language              : {LANGUAGE_CODE}\n")
+    print(f"\n  WebSocket server   ws://localhost:{PORT}")
+    print(f"  Dialogflow Project ID : {PROJECT_ID}")
+    print(f"  Language              : {LANGUAGE_CODE}\n")
 
-    # WebSocket server start karo
+    # WebSocket server start 
     async with websockets.serve(handle_client, "localhost", PORT):
         await asyncio.Future()  # Server ko hamesha chalta rakho
 
