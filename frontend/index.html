@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dialogflow Chat</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Chat Container ── */
+    .chat-wrapper {
+      width: 420px;
+      max-width: 98vw;
+      height: 640px;
+      display: flex;
+      flex-direction: column;
+      background: #1a1d27;
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+      overflow: hidden;
+      border: 1px solid #2d3148;
+    }
+
+    /* ── Header ── */
+    .chat-header {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar {
+      width: 40px; height: 40px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .header-info h2 { font-size: 15px; font-weight: 600; color: #fff; }
+    .header-info p  { font-size: 12px; color: rgba(255,255,255,0.7); }
+    .status-dot {
+      width: 8px; height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+      box-shadow: 0 0 6px #4ade80;
+    }
+    #connection-status { font-size: 12px; color: rgba(255,255,255,0.7); margin-left: auto; }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: #2d3148 transparent;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: #2d3148; border-radius: 4px; }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 80%;
+      animation: fadeUp 0.25s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user  { align-self: flex-end; align-items: flex-end; }
+    .msg.bot   { align-self: flex-start; align-items: flex-start; }
+    .msg.system{ align-self: center; }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .msg.user  .bubble { background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
+    .msg.bot   .bubble { background: #252839; color: #e2e8f0; border-bottom-left-radius: 4px; border: 1px solid #2d3148; }
+    .msg.system .bubble { background: transparent; color: #64748b; font-size: 12px; padding: 4px 8px; }
+
+    .msg-time { font-size: 11px; color: #475569; margin-top: 3px; padding: 0 4px; }
+
+    /* Typing indicator */
+    .typing-bubble {
+      display: flex; align-items: center; gap: 4px;
+      padding: 12px 16px;
+    }
+    .typing-bubble span {
+      width: 7px; height: 7px;
+      background: #64748b;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%            { transform: translateY(-6px); }
+    }
+
+    /* ── Input Area ── */
+    .input-area {
+      padding: 14px 16px;
+      background: #12151e;
+      border-top: 1px solid #1e2235;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    #user-input {
+      flex: 1;
+      background: #1e2235;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: #e2e8f0;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    #user-input:focus { border-color: #4f46e5; }
+    #user-input::placeholder { color: #475569; }
+
+    #send-btn {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    #send-btn:hover   { opacity: 0.9; }
+    #send-btn:active  { transform: scale(0.95); }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #send-btn svg { width: 18px; height: 18px; fill: #fff; }
+
+    /* ── Disconnected banner ── */
+    #reconnect-banner {
+      display: none;
+      background: #7f1d1d;
+      color: #fca5a5;
+      font-size: 12px;
+      text-align: center;
+      padding: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="chat-wrapper">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="avatar">🤖</div>
+    <div class="header-info">
+      <h2>Flight Assistant</h2>
+      <p><span class="status-dot"></span>Dialogflow ES Powered</p>
+    </div>
+    <div id="connection-status">Connecting…</div>
+  </div>
+
+  <!-- Reconnect Banner -->
+  <div id="reconnect-banner">⚠️ Connection lost. Reconnecting…</div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="msg system">
+      <div class="bubble">Chat connected. Say hello to start! ✈️</div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <textarea id="user-input" rows="1" placeholder="Type a message…"></textarea>
+    <button id="send-btn" disabled title="Send">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // ── Config ─────────────────────────────────────────────────────────────────
+  // Change this to your server address if needed
+  const WS_URL = 'ws://localhost:3000';
+
+  // ── DOM refs ────────────────────────────────────────────────────────────────
+  const messagesEl   = document.getElementById('messages');
+  const inputEl      = document.getElementById('user-input');
+  const sendBtn      = document.getElementById('send-btn');
+  const statusEl     = document.getElementById('connection-status');
+  const bannerEl     = document.getElementById('reconnect-banner');
+
+  let ws;
+  let typingEl = null;
+  let reconnectTimer = null;
+
+  // ── WebSocket Setup ─────────────────────────────────────────────────────────
+  function connect() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      statusEl.textContent = '🟢 Connected';
+      sendBtn.disabled = false;
+      bannerEl.style.display = 'none';
+      clearTimeout(reconnectTimer);
+    };
+
+    ws.onmessage = (event) => {
+      removeTyping();
+      const data = JSON.parse(event.data);
+      // data.text is the bot reply
+      appendMessage('bot', data.text || '(empty response)');
+    };
+
+    ws.onclose = () => {
+      statusEl.textContent = '🔴 Disconnected';
+      sendBtn.disabled = true;
+      bannerEl.style.display = 'block';
+      removeTyping();
+      // Auto-reconnect after 3 seconds
+      reconnectTimer = setTimeout(connect, 3000);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      ws.close(); // triggers onclose → reconnect
+    };
+  }
+
+  // ── Message Helpers ─────────────────────────────────────────────────────────
+  function appendMessage(role, text) {
+    const wrap   = document.createElement('div');
+    wrap.className = `msg ${role}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+
+    const time   = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+    wrap.appendChild(bubble);
+    wrap.appendChild(time);
+    messagesEl.appendChild(wrap);
+    scrollBottom();
+  }
+
+  function showTyping() {
+    if (typingEl) return;
+    typingEl = document.createElement('div');
+    typingEl.className = 'msg bot';
+    typingEl.innerHTML = `
+      <div class="bubble typing-bubble">
+        <span></span><span></span><span></span>
+      </div>`;
+    messagesEl.appendChild(typingEl);
+    scrollBottom();
+  }
+
+  function removeTyping() {
+    if (typingEl) { typingEl.remove(); typingEl = null; }
+  }
+
+  function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // ── Send Logic ──────────────────────────────────────────────────────────────
+  function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+    appendMessage('user', text);
+    showTyping();
+
+    // Send JSON to server
+    ws.send(JSON.stringify({ message: text }));
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+  }
+
+  // ── Event Listeners ─────────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', sendMessage);
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Auto-resize textarea
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  // ── Boot ────────────────────────────────────────────────────────────────────
+  connect();
+</script>
+</body>
+</html>
