@@ -16,7 +16,7 @@ import websockets
 from dotenv import load_dotenv
 from google.cloud import dialogflow_v2 as dialogflow
 
-# ── .env file load karo ──────────────────────────────────────────────────────
+# ── .env file load  ──────────────────────────────────────────────────────
 load_dotenv()
 
 PROJECT_ID    = os.getenv("DIALOGFLOW_PROJECT_ID")
