@@ -25,7 +25,7 @@ PORT          = int(os.getenv("PORT", 3000))
 
 # Startup pe check karo ke PROJECT_ID hai ya nahi
 if not PROJECT_ID:
-    raise EnvironmentError("  DIALOGFLOW_PROJECT_ID missing hai .env mein!")
+    raise EnvironmentError("  DIALOGFLOW_PROJECT_ID missing  .env!")
 
 
 # ── Dialogflow Function ──────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ def send_to_dialogflow(message: str, session_id: str) -> str:
     print(f"  ↳ Intent detect hua : {result.intent.display_name}")
     print(f"  ↳ Bot ka reply      : {result.fulfillment_text}")
 
-    return result.fulfillment_text or "Mujhe samajh nahi aaya, dobara try karo."
+    return result.fulfillment_text or "Sorry, I didn't get you."
 
 
 # ── WebSocket Handler ────────────────────────────────────────────────────────
